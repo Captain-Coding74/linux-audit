@@ -12,29 +12,29 @@ cron_results_reboot=$(sudo grep -rn '@reboot' $cron_paths 2> /dev/null)
 # shellcheck disable=SC2086
 cron_results_reboot_count=$(sudo grep -rn '@reboot' $cron_paths 2> /dev/null | wc -l)
 uid0_users=$(cut -d: -f1,3 "$passwd_file" | grep ':0$' | grep -v "^root:")
-uid0_counts=$(cut -d: -f1,3 "$passwd_file" | grep ':0$' | grep -v "^root:" | wc -l)
+uid0_counts=$(cut -d: -f1,3 "$passwd_file" | grep ':0$' | grep -vc "^root:")
 if [ "$counts" -eq 0 ]; then
-    echo "Clean"
+    echo "World-writable files: Clean"
 else
-    echo "Found $counts world-writable file(s):"
+    echo "Wold-writable files: $counts found"
     echo "$results"
 fi
 if [ "$count_root_writable" -eq 0 ]; then
-    echo "Clean"
+    echo "Root-owned files writable by others: Clean"
 else
-    echo "Found $count_root_writable root-owned scripts others can write file(s):"
+    echo "Root-owned files writable by others: $count_root_writable found"
     echo "$root_owned_writable"
 fi
 if [ "$cron_results_reboot_count" -eq 0 ]; then
-    echo "No @reboot existed"
+    echo "@reboot cron entries: none"
 else
-    echo "Found $cron_results_reboot_count @reboot logs:"
+    echo "@reboot cron entries: $cron_results_reboot_count"
     echo "$cron_results_reboot"
 fi
 if [ "$uid0_counts" -eq 0 ]; then
-    echo "No UID 0 others than root"
+    echo "Extra UID 0 accounts: none"
 else
-    echo "Found $uid0_counts backdoor account:"
+    echo "Extra UID 0 accounts: $uid0_counts"
     echo "$uid0_users"
 fi
 echo "Done at $(date)"
