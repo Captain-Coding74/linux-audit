@@ -1,12 +1,15 @@
 #!/bin/bash
 dir="${1:-$HOME/exam1}"
+cron_paths="${2:-/etc/crontab /etc/cron.d}"
 echo "Auditing: $dir"
 results=$(find "$dir" -type f -perm -o=w)
 counts=$(find "$dir" -type f -perm -o=w | wc -l)
 root_owned_writable=$(find "$dir" -type f -user root -perm -o=w)
 count_root_writable=$(find "$dir" -type f -user root -perm -o=w | wc -l)
-cron_results_reboot=$(sudo grep -rn '@reboot' /etc/crontab /etc/cron.d 2> /dev/null)
-cron_results_reboot_count=$(sudo grep -rn '@reboot' /etc/crontab /etc/cron.d 2> /dev/null | wc -l)
+# shellcheck disable=SC2086
+cron_results_reboot=$(sudo grep -rn '@reboot' $cron_paths 2> /dev/null)
+# shellcheck disable=SC2086
+cron_results_reboot_count=$(sudo grep -rn '@reboot' $cron_paths 2> /dev/null | wc -l)
 if [ "$counts" -eq 0 ]; then
     echo "Clean"
 else
