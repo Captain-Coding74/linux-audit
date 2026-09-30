@@ -4,7 +4,7 @@ A small Bash tool that audits a Linux system for common privilege escalation and
 
 Usage: 
 ```bash
-./audit.sh [folder] [cron paths] [passwd file] [suid paths] [baseline file]
+./audit.sh [folder] [cron paths] [passwd file] [suid paths] [baseline file] [capabilities paths] [cap_baseline file]
 ```
 
 ## Checks
@@ -34,11 +34,17 @@ Usage:
 **Why it matters:** If a SUID-root program lets you do more than its one job, like editing files or running other commands, a normal user just got root. 
 **How:** `comm -13 "$suid_baseline" <(find $suid_paths -type f -perm -4000 | sort)`
 
+### 6. Extra capabilities
+**What:** Capabilities break root's power into small pieces that can be given to individual programs. This check finds files whose capabilities aren't in the baseline, including new capabilities added to existing files.
+**Why it matters:** An attacker who gets root once can give a file a powerful capability like `cap_setuid`. Even after the admin removes their access, the attacker can run that file as a normal user and become root again. This is called persistence. 
+**How:** `comm -13 "$cap_baseline" <(getcap -r $cap_paths 2> /dev/null | sort)`
+
 ## Baseline setup
 Run it inside linux-audit, on a system you trust is clean
 ```bash
 cd ~/linux-audit
 find /usr -type f -perm -4000 2>/dev/null | sort > suid-baseline.txt
+getcap -r /usr 2> /dev/null | sort > capabilities_baseline.txt
 ```
 
 ## Testing
@@ -49,11 +55,14 @@ mkdir -p ~/cron-test && echo "@reboot /tmp/.update.sh" > ~/cron-test/fake-job
 mkdir -p ~/suid-test
 echo 'echo hi' > ~/suid-test/fake-tool
 chmod 4755 ~/suid-test/fake-tool
-./audit.sh ~/exam1 ~/cron-test ~/fake-passwd "/usr $HOME/suid-test"
-
+mkdir -p ~/fake-ping
+echo 'echo hi' >  ~/fake-ping/fake-tools
+sudo setcap cap_net_raw+ep ~/fake-ping/fake-tools
+./audit.sh ~/exam1 ~/cron-test ~/fake-passwd "/usr $HOME/suid-test" "" "/usr $HOME/fake-ping"
 ```
 
 ## Roadmap
 - [x] SUID binaries check
 - [ ] Named options (`--passwd`, `--cron`) instead of positional arguments
 - [ ] Users in the `sudo` group
+- [x] Capabilities check
