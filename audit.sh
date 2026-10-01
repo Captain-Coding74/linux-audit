@@ -6,6 +6,8 @@ suid_paths="${4:-/usr}"
 suid_baseline="${5:-$HOME/linux-audit/suid-baseline.txt}"
 cap_paths="${6:-/usr}"
 cap_baseline="${7:-$HOME/linux-audit/capabilities_baseline.txt}"
+group_file="${8:-/etc/group}"
+sudoers_paths="${9:-/etc/sudoers /etc/sudoers.d}"
 echo "Auditing: $dir"
 results=$(find "$dir" -type f -perm -o=w)
 counts=$(find "$dir" -type f -perm -o=w | wc -l)
@@ -25,6 +27,12 @@ comm_suid_count=$(comm -13 "$suid_baseline" <(find $suid_paths -type f -perm -40
 comm_cap=$(comm -13 "$cap_baseline" <(getcap -r $cap_paths 2> /dev/null | sort))
 # shellcheck disable=SC2086
 comm_cap_count=$(comm -13 "$cap_baseline" <(getcap -r $cap_paths 2> /dev/null | sort) | wc -l)
+sudo_members=$(grep "^sudo:" "$group_file" | cut -d: -f4)
+sudo_member_count=$(grep "^sudo:" "$group_file" | cut -d: -f4 | tr ',' '\n' | grep -c .)
+# shellcheck disable=SC2086
+sudoers_nopasswd=$(sudo grep -rn "^[^#]*NOPASSWD" $sudoers_paths 2> /dev/null)
+# shellcheck disable=SC2086
+nopasswd_count=$(sudo grep -rn "^[^#]*NOPASSWD" $sudoers_paths 2> /dev/null | wc -l)
 if [ "$counts" -eq 0 ]; then
     echo "World-writable files: Clean"
 else
@@ -60,5 +68,17 @@ if [ "$comm_cap_count" -eq 0 ]; then
 else
     echo "Extra capabilities: $comm_cap_count"
     echo "$comm_cap"
+fi
+if [ "$sudo_member_count" -eq 0 ]; then
+    echo "Sudo group members: none"
+else
+    echo "Sudo group members: $sudo_member_count"
+    echo "$sudo_members"
+fi
+if [ "$nopasswd_count" -eq 0 ]; then
+    echo "nopasswd: none"
+else
+    echo "nopasswd: $nopasswd_count"
+    echo "$sudoers_nopasswd"
 fi
 echo "Done at $(date)"
