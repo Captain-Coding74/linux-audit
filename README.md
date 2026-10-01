@@ -4,7 +4,7 @@ A small Bash tool that audits a Linux system for common privilege escalation and
 
 Usage: 
 ```bash
-./audit.sh [folder] [cron paths] [passwd file] [suid paths] [baseline file] [capabilities paths] [cap_baseline file]
+./audit.sh [folder] [cron paths] [passwd file] [suid paths] [baseline file] [capabilities paths] [cap_baseline file] [group file] [sudoers paths]
 ```
 
 ## Checks
@@ -39,6 +39,15 @@ Usage:
 **Why it matters:** An attacker who gets root once can give a file a powerful capability like `cap_setuid`. Even after the admin removes their access, the attacker can run that file as a normal user and become root again. This is called persistence. 
 **How:** `comm -13 "$cap_baseline" <(getcap -r $cap_paths 2> /dev/null | sort)`
 
+### 7. Sudo group members and NOPASSWD rules
+**What:** The sudo group is a group whose members can run commands with sudo. This check lists every member of the sudo group. NOPASSWD lets a user run sudo with no password prompt. This check searches `/etc/sudoers` and `/etc/sudoers.d` for NOPASSWD rules, ignoring commented lines.
+**Why it matters:** An attacker who gets root once can add their account to the sudo group, or give it a NOPASSWD rule, which lets it run sudo with no password prompt. Later, even after the admin removes their access, they can log in as that normal account and become root again. This is called persistence.
+**How:**
+- Sudo members: `grep "^sudo:" "$group_file" | cut -d: -f4`
+- NOPASSWD rules: `sudo grep -rn "^[^#]*NOPASSWD" $sudoers_paths 2> /dev/null`
+
+**Note:** Sudo group members are listed for review, not as proof of an attack.
+
 ## Baseline setup
 Run it inside linux-audit, on a system you trust is clean
 ```bash
@@ -58,11 +67,14 @@ chmod 4755 ~/suid-test/fake-tool
 mkdir -p ~/fake-ping
 echo 'echo hi' >  ~/fake-ping/fake-tools
 sudo setcap cap_net_raw+ep ~/fake-ping/fake-tools
-./audit.sh ~/exam1 ~/cron-test ~/fake-passwd "/usr $HOME/suid-test" "" "/usr $HOME/fake-ping"
+echo "sudo:x:27:user,hacker" > ~/fake_group
+mkdir -p ~/sudoers-test
+printf "hacker ALL=(ALL) NOPASSWD: ALL \n# user ALL=(ALL) NOPASSWD: ALL \n %%sudo ALL=(ALL:ALL) ALL\n" > ~/sudoers-test/fake-rule
+./audit.sh ~/exam1 ~/cron-test ~/fake-passwd "/usr $HOME/suid-test" "" "/usr $HOME/fake-ping" "" "$HOME/fake_group" "$HOME/sudoers-test"
 ```
 
 ## Roadmap
 - [x] SUID binaries check
 - [ ] Named options (`--passwd`, `--cron`) instead of positional arguments
-- [ ] Users in the `sudo` group
+- [x] Users in the `sudo` group
 - [x] Capabilities check
