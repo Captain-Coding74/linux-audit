@@ -1,0 +1,6 @@
+group_file/
+*.txt
+!*baseline.txt
+fake*
+*test/
+
