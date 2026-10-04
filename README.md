@@ -48,6 +48,16 @@ Usage:
 
 **Note:** Sudo group members are listed for review, not as proof of an attack.
 
+### 8. Processes running from writable folders
+**What:** Running processes whose program file is stored in a folder that is writable by non-root users, like `/tmp`, `/var/tmp` or `/dev/shm`. The check reads each process's `exe` link in `/proc` to find where its program really lives.
+**Why it matters:** Attackers often drop their programs in `/tmp`, `/var/tmp` or `/dev/shm` because anyone can write to them, even without root. Real system programs live in folders like `/usr/bin` or `/usr/sbin`. Attackers can give a program a harmless-looking name like `kworker`, but they can't hide the program's real path, which the `exe` link in `/proc` reveals. So a process running from a writable folder is a strong warning sign.
+**How:** 
+```bash
+tmp_procs=$(for p in /proc/[0-9]*; do
+    echo "$p $(sudo readlink "$p/exe")"
+done | grep -E ' (/tmp|/var/tmp|/dev/shm)')
+```
+
 ## Baseline setup
 Run it inside linux-audit, on a system you trust is clean
 ```bash
@@ -70,11 +80,15 @@ sudo setcap cap_net_raw+ep ~/fake-ping/fake-tools
 echo "sudo:x:27:user,hacker" > ~/fake_group
 mkdir -p ~/sudoers-test
 printf "hacker ALL=(ALL) NOPASSWD: ALL \n# user ALL=(ALL) NOPASSWD: ALL \n %%sudo ALL=(ALL:ALL) ALL\n" > ~/sudoers-test/fake-rule
+cp /usr/bin/bash /tmp/fake-bash
+/tmp/fake-bash -c 'sleep 3600; true' &
 ./audit.sh ~/exam1 ~/cron-test ~/fake-passwd "/usr $HOME/suid-test" "" "/usr $HOME/fake-ping" "" "$HOME/fake_group" "$HOME/sudoers-test"
 ```
+**Cleanup note:** Don't forget to stop the fake and its sleep child, then delete `/tmp/fake-bash`. Otherwise every future `./audit.sh` would flag it.
 
 ## Roadmap
 - [x] SUID binaries check
 - [ ] Named options (`--passwd`, `--cron`) instead of positional arguments
 - [x] Users in the `sudo` group
 - [x] Capabilities check
+- [x] Check for processes running from writable folders
