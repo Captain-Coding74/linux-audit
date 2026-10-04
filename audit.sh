@@ -33,6 +33,10 @@ sudo_member_count=$(grep "^sudo:" "$group_file" | cut -d: -f4 | tr ',' '\n' | gr
 sudoers_nopasswd=$(sudo grep -rn "^[^#]*NOPASSWD" $sudoers_paths 2> /dev/null)
 # shellcheck disable=SC2086
 nopasswd_count=$(sudo grep -rn "^[^#]*NOPASSWD" $sudoers_paths 2> /dev/null | wc -l)
+tmp_procs=$(for p in /proc/[0-9]*; do
+    echo "$p $(sudo readlink "$p/exe")"
+done | grep -E ' (/tmp|/var/tmp|/dev/shm)')
+
 if [ "$counts" -eq 0 ]; then
     echo "World-writable files: Clean"
 else
@@ -80,5 +84,11 @@ if [ "$nopasswd_count" -eq 0 ]; then
 else
     echo "nopasswd: $nopasswd_count"
     echo "$sudoers_nopasswd"
+fi
+if [ -z "$tmp_procs" ]; then
+    echo "Processes running from writable folders: none"
+else
+    echo "Processes running from writable folders: "
+    echo "$tmp_procs"
 fi
 echo "Done at $(date)"
