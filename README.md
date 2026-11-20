@@ -88,7 +88,7 @@ cp /usr/bin/bash /tmp/fake-bash
 
 ## Roadmap
 - [x] SUID binaries check
-- [ ] Named options (`--passwd`, `--cron`) instead of positional arguments
+- [x] Named options (`--passwd`, `--cron`) instead of positional arguments
 - [x] Users in the `sudo` group
 - [x] Capabilities check
 - [x] Check for processes running from writable folders
